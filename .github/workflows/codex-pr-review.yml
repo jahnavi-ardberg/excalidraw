@@ -29,7 +29,7 @@ jobs:
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           sandbox: read-only
-          prompt: Review only this pull request's changes. Follow repository instructions, report actionable defects with file and line references, and do not modify files.
+          prompt: Review only this pull request's changes. Report only actionable defects in Markdown, including severity, file path, line number, impact, and a concise fix. If none exist, output exactly "No actionable defects found." Do not mention Coznt, Lumora, .coznt, unavailable tools, missing context, review limitations, internal review steps, or modify files.
 
   comment:
     needs: review
