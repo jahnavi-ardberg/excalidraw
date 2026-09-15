@@ -1,0 +1,49 @@
+name: Codex PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final-message: ${{ steps.codex.outputs['final-message'] }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify OpenAI API key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::Add OPENAI_API_KEY under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+      - id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: read-only
+          prompt: Review only this pull request's changes. Report only actionable defects in Markdown, including severity, file path, line number, impact, and a concise fix. If none exist, output exactly "No actionable defects found." Do not mention Coznt, Lumora, .coznt, unavailable tools, missing context, review limitations, internal review steps, or modify files.
+
+  comment:
+    needs: review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          REVIEW: ${{ needs.review.outputs['final-message'] }}
+        with:
+          script: |
+            const review = process.env.REVIEW?.trim();
+            if (!review) return core.setFailed('Codex returned an empty review.');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body: `## Codex PR Review\n\n${review}` });
